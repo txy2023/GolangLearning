@@ -16,4 +16,5 @@ func main() {
 		log.Println(err)
 	}
 	fmt.Println(res)
+	_ = client.Close()
 }

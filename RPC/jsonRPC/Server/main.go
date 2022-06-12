@@ -24,12 +24,15 @@ func (q *Query) GetAge(req string, res *string) error {
 }
 
 func main() {
+	// 注册服务方法
 	if err := rpc.RegisterName("QueryService", new(Query)); err != nil {
 		log.Println(err)
 	}
+	// 开启监听
 	listener, _ := net.Listen("tcp", ":1234")
 	for {
 		conn, _ := listener.Accept()
+		// 指定json作编解码器
 		go rpc.ServeCodec(jsonrpc.NewServerCodec(conn))
 	}
 }
