@@ -14,7 +14,7 @@ func main() {
 	client := rpc.NewClientWithCodec(jsonrpc.NewClientCodec(conn))
 	// 远程调用方法
 	var res string
-	_ = client.Call("QueryService.GetAge", "for", &res)
+	_ = client.Call("QueryService.GetAge", "foo", &res)
 	fmt.Println(res)
 	_ = client.Close()
 }
