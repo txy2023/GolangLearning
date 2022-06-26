@@ -2,7 +2,7 @@ syntax = "proto3";
 package pb;
 option go_package= ".;pb";
 
-// The greeter service definition.
+// 定义查询服务包含的方法
 service Query {
   rpc GetAge (userInfo) returns (ageInfo) {}
 }

@@ -13,9 +13,11 @@ func main() {
 	}
 	enc, _ := proto.Marshal(&tian)
 	fmt.Println(enc)
+	tianmess := tian.ProtoReflect()
 
-	new := pb.UserInfo{}
-	_ = proto.Unmarshal(enc, &new)
-	fmt.Println(new)
+
+	newname := pb.UserInfo{}
+	_ = proto.Unmarshal(enc, &newname)
+	fmt.Println(newname)
 
 }
