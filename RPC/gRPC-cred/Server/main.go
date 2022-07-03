@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
-	"google.golang.org/grpc"
 	"log"
 	"net"
 	"shannont/gRPC-cred/pb"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 // 用户信息
@@ -16,8 +18,8 @@ var userinfo = map[string]int32{
 
 // Query 结构体，实现QueryServer接口
 // type QueryServer interface {
-//  GetAge(context.Context, *UserInfo) (*AgeInfo, error)
-//	mustEmbedUnimplementedQueryServer()
+//   GetAge(context.Context, *UserInfo) (*AgeInfo, error)
+//   mustEmbedUnimplementedQueryServer()
 // }
 type Query struct {
 	pb.UnimplementedQueryServer // 涉及版本兼容
@@ -36,8 +38,12 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
+	creds, err := credentials.NewServerTLSFromFile("../cert/server.crt", "../cert/server.key")
+	if err != nil {
+		log.Panic(err)
+	}
 	// new一个gRPC服务器，用来注册服务
-	grpcserver := grpc.NewServer()
+	grpcserver := grpc.NewServer(grpc.Creds(creds))
 	// 注册服务方法
 	pb.RegisterQueryServer(grpcserver, new(Query))
 	// 开启gRPC服务
