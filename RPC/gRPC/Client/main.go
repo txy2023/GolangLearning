@@ -20,5 +20,4 @@ func main() {
 	//RPC方法调用
 	age, _ := client.GetAge(context.Background(), &pb.UserInfo{Name: "foo"})
 	fmt.Println(age)
-
 }
