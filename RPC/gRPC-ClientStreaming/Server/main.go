@@ -1,11 +1,12 @@
 package main
 
 import (
-	"google.golang.org/grpc"
 	"io"
 	"log"
 	"net"
 	"shannont/grpc-ClientStreming/pb"
+
+	"google.golang.org/grpc"
 )
 
 // 用户信息
@@ -30,9 +31,10 @@ func (q *Query) GetAge(serverStream pb.Query_GetAgeServer) error {
 		userinfoRecv, err := serverStream.Recv()
 		// 待客户端主动关闭流后，退出for循环
 		if err == io.EOF {
-			log.Println("end of stream")
+			log.Println("end of the recv direction of the stream")
 			break
 		}
+		log.Printf("The name of user received is %s\n", userinfoRecv.GetName())
 		names_received = append(names_received, userinfoRecv)
 	}
 	// 统计年龄和
@@ -41,10 +43,12 @@ func (q *Query) GetAge(serverStream pb.Query_GetAgeServer) error {
 		ages_sum += userinfo[v.GetName()]
 	}
 	// 返回message
+	log.Printf("send message about the total of ages:%d ", ages_sum)
 	err := serverStream.SendAndClose(&pb.AgeInfo{Age: ages_sum})
 	if err != nil {
 		log.Panic(err)
 	}
+	log.Println("end of the send direction of the stream")
 	return nil
 }
 

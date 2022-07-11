@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"shannont/grpc-ClientStreming/pb"
 	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -20,8 +21,7 @@ func main() {
 	client := pb.NewQueryClient(conn)
 	//返回GetAge方法对应的流
 	queryStream, _ := client.GetAge(context.Background())
-	// 创建goroutine用来向stream中发送message
-
+	// 向stream中发送message
 	_ = queryStream.Send(&pb.UserInfo{Name: "foo"})
 	time.Sleep(time.Second)
 	_ = queryStream.Send(&pb.UserInfo{Name: "bar"})
@@ -32,5 +32,5 @@ func main() {
 	if err != nil {
 		log.Println(err)
 	}
-	fmt.Printf("The age of foo and bar is %d", ages_sum.GetAge())
+	fmt.Printf("The total of ages of foo and bar is %d", ages_sum.GetAge())
 }
