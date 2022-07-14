@@ -1,11 +1,12 @@
 package main
 
 import (
-	"google.golang.org/grpc"
 	"log"
 	"net"
 	"shannont/grpc-ServerStreaming/pb"
 	"time"
+
+	"google.golang.org/grpc"
 )
 
 // 用户信息
@@ -39,17 +40,11 @@ func (q *Query) GetAge(info *pb.UserInfo, serverStream pb.Query_GetAgeServer) er
 
 func main() {
 	// 创建socket监听器
-	listener, err := net.Listen("tcp", ":1234")
-	if err != nil {
-		log.Panic(err)
-	}
+	listener, _ := net.Listen("tcp", ":1234")
 	// new一个gRPC服务器，用来注册服务
 	grpcserver := grpc.NewServer()
 	// 注册服务方法
 	pb.RegisterQueryServer(grpcserver, new(Query))
 	// 开启gRPC服务
-	err = grpcserver.Serve(listener)
-	if err != nil {
-		log.Panic(err)
-	}
+	_ = grpcserver.Serve(listener)
 }
