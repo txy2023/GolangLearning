@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"wanshantian/grpc-watch/pb"
 
@@ -20,7 +19,13 @@ func main() {
 	client := pb.NewQueryClient(conn)
 	//RPC方法调用
 	ctx := context.Background()
+	//先获取更新前的年龄
 	age, _ := client.GetAge(ctx, &pb.UserInfo{Name: "foo"})
-	fmt.Println(age)
+	log.Printf("Before updating, the age is %d\n", age.GetAge())
+	//更新年龄
+	log.Println("updating")
 	client.Update(ctx, &pb.UserInfo{Name: "foo"})
+	//再获取更新后的年龄
+	age, _ = client.GetAge(ctx, &pb.UserInfo{Name: "foo"})
+	log.Printf("After updating, the age is %d\n", age.GetAge())
 }
