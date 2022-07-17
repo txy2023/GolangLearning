@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net"
 	"sync"
@@ -37,18 +38,26 @@ func (q *Query) GetAge(ctx context.Context, info *pb.UserInfo) (*pb.AgeInfo, err
 }
 
 func (q *Query) Update(ctx context.Context, info *pb.UserInfo) (*emptypb.Empty, error) {
-	name := info.GetName()
 	q.mu.Lock()
+	defer q.mu.Unlock()
+	name := info.GetName()
 	userinfo[name] += 1
-	q.ch <- name
-	q.mu.Unlock()
+	if q.ch != nil {
+		q.ch <- name
+	}
 	return &emptypb.Empty{}, nil
 }
 
 func (q *Query) Watch(timeSpecify *pb.WatchTime, serverStream pb.Query_WatchServer) error {
+	if q.ch != nil {
+		return errors.New("Watching is running, please stop first")
+	}
+	q.ch = make(chan string, 1)
 	for {
 		select {
 		case <-time.After(time.Second * time.Duration(timeSpecify.GetTime())):
+			close(q.ch)
+			q.ch = nil
 			return nil
 		case nameModify := <-q.ch:
 			log.Printf("The name of %s is updated\n", nameModify)
@@ -66,7 +75,7 @@ func main() {
 	// new一个gRPC服务器，用来注册服务
 	grpcserver := grpc.NewServer()
 	// 注册服务方法
-	pb.RegisterQueryServer(grpcserver, &Query{ch: make(chan string, 1)})
+	pb.RegisterQueryServer(grpcserver, &Query{})
 	// 开启gRPC服务
 	err = grpcserver.Serve(listener)
 	if err != nil {

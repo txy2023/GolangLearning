@@ -19,14 +19,16 @@ func main() {
 	defer conn.Close()
 	client := pb.NewQueryClient(conn)
 	//RPC方法调用
-	stream, _ := client.Watch(context.Background(), &pb.WatchTime{Time: 30})
+	stream, _ := client.Watch(context.Background(), &pb.WatchTime{Time: 10})
 	for {
 		userInfoRecv, err := stream.Recv()
 		if err == io.EOF {
 			log.Println("end of watch")
 			break
+		} else if err != nil {
+			log.Println(err)
+			break
 		}
 		log.Printf("The name of %s is updated\n", userInfoRecv.GetName())
-
 	}
 }
