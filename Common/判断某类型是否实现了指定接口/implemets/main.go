@@ -16,6 +16,7 @@ func (a *dog) speak() {
 }
 
 func main() {
+	//通过reflect方法获取
 	typ_dog := reflect.TypeOf(&dog{})
 	typ_animal := reflect.TypeOf((*animal)(nil)).Elem()
 	fmt.Println(typ_dog.Implements(typ_animal))
