@@ -1,79 +1,37 @@
 package main
 
 import (
-	"io"
+	"fmt"
 	"log"
-	"os"
-	"time"
-
-	"golang.org/x/crypto/ssh"
+	"shannont/ssh/cmd"
 )
 
-func SendCommand(in io.WriteCloser, cmd string) error {
-	if _, err := in.Write([]byte(cmd + "\n")); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func main() {
-
-	// Setup configuration for SSH client
-	config := &ssh.ClientConfig{
-		Timeout: time.Second * 5,
-		User:    "tian",
-		Auth: []ssh.AuthMethod{
-			ssh.Password("tian"),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	user1 := &cmd.LoginInfo{
+		User:     "tian",
+		Ip:       "192.168.101.108",
+		Port:     22,
+		Password: "tian",
 	}
-
-	// Connect to the client
-	client, err := ssh.Dial("tcp", "192.168.101.109:22", config)
+	client, err := cmd.NewClient(user1)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
-	defer client.Close()
-
-	// Create a session
-	session, err := client.NewSession()
+	out := client.Run("whoami")
+	fmt.Println(out)
+	fmt.Println(client.Run("pwd"))
+	stream, err := client.NewStreamPipe()
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
-	defer session.Close()
-
-	// Setup StdinPipe to send commands
-	stdin, err := session.StdinPipe()
-	if err != nil {
-		log.Fatal(err)
-	}
-	// defer stdin.Close()
-
-	// Route session Stdout/Stderr to system Stdout/Stderr
-	session.Stdout = os.Stdout
-	session.Stderr = os.Stderr
-
-	// Start a shell
-	if err := session.Shell(); err != nil {
-		log.Fatal(err)
-	}
-
-	// Send username
-	if _, err := stdin.Write([]byte("pwd\n")); err != nil {
-		log.Fatal(err)
-	}
-	// SendCommand(stdin, "cd /home\n")
-	SendCommand(stdin, "pwd")
-	SendCommand(stdin, "su")
-	SendCommand(stdin, "tian")
-	SendCommand(stdin, "whoami")
-	SendCommand(stdin, "whoami")
-	SendCommand(stdin, "echo 'echo hello world'>test1.sh && chmod 777 test1.sh")
-	SendCommand(stdin, "./test1.sh")
-	stdin.Close()
-	err = session.Wait()
-	if err != nil {
-		log.Println(err)
-	}
+	fmt.Println(stream.Run("pwd"))
+	fmt.Println(stream.Run("ls"))
+	stream.Run("pwd")
+	stream.Run("ls")
+	fmt.Println(stream.Run("su"))
+	fmt.Println(stream.Run("tian"))
+	fmt.Println(stream.Run("whoami"))
+	fmt.Println(stream.Run(""))
+	fmt.Println(stream.Run(""))
+	stream.Close()
 }
