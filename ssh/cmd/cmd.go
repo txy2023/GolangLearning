@@ -115,7 +115,6 @@ func (s *Stream) readUntil() error {
 				tmp := make([]byte, len(out))
 				s.out.Read(tmp)
 				s.ch <- string(tmp)
-				// ch <- struct{}{}
 				close(ch)
 			}
 		}
