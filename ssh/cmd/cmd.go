@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,10 +26,11 @@ type Client struct {
 }
 
 type Stream struct {
-	in      io.WriteCloser
-	out     *bytes.Buffer
-	ch      chan string
-	session *ssh.Session
+	in              io.WriteCloser
+	out             *bytes.Buffer
+	ch              chan string
+	readUntilExpect string
+	session         *ssh.Session
 }
 
 func NewClient(li *LoginInfo) (*Client, error) {
@@ -60,7 +63,7 @@ func (c *Client) Run(cmd string) string {
 	return string(res)
 }
 
-func (c *Client) NewStreamPipe() (*Stream, error) {
+func (c *Client) NewStream() (*Stream, error) {
 	session, err := c.NewSession()
 	if err != nil {
 		return nil, err
@@ -89,7 +92,34 @@ func (c *Client) NewStreamPipe() (*Stream, error) {
 		return nil, err
 	}
 	go session.Wait()
-	return &Stream{in: stream, out: outbuf, ch: make(chan string, 1), session: session}, nil
+	return &Stream{in: stream, out: outbuf, ch: make(chan string, 1), session: session, readUntilExpect: "]$"}, nil
+}
+
+func (s *Stream) UpdateReadUntilExpect(expect string) {
+	s.readUntilExpect = expect
+}
+
+func (s *Stream) readUntil() error {
+	ch := make(chan struct{}, 1)
+	timeout := time.After(time.Second * 5)
+	for {
+		select {
+		case <-timeout:
+			return errors.New("Timeout Waiting for Return")
+		case <-ch:
+			return nil
+		default:
+			time.Sleep(time.Microsecond * 200)
+			out := s.out.String()
+			if strings.Contains(out, s.readUntilExpect) {
+				tmp := make([]byte, len(out))
+				s.out.Read(tmp)
+				s.ch <- string(tmp)
+				// ch <- struct{}{}
+				close(ch)
+			}
+		}
+	}
 }
 
 func (s *Stream) Run(cmd string) string {
@@ -100,27 +130,9 @@ func (s *Stream) Run(cmd string) string {
 		wg.Done()
 	}()
 	go func() {
-		buf := make([]byte, 8192)
-		var t int
-		terminator := '$'
-		for {
-			fmt.Println("test")
-			time.Sleep(time.Second * 1)
-			n, err := s.out.Read(buf)
-			if err != nil && err != io.EOF {
-				log.Panic(err)
-				fmt.Println(string(buf))
-			}
-			if n > 0 {
-				t = bytes.LastIndexByte(buf, byte(terminator))
-				if t > 0 {
-					s.ch <- string(buf[:t])
-					break
-				} else {
-					s.ch <- string(buf)
-					break
-				}
-			}
+		err := s.readUntil()
+		if err != nil {
+			log.Panic(err)
 		}
 		wg.Done()
 	}()
@@ -131,5 +143,4 @@ func (s *Stream) Run(cmd string) string {
 func (s Stream) Close() {
 	s.in.Close()
 	s.session.Close()
-
 }
