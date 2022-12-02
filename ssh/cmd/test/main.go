@@ -1,22 +1,19 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
+
+	"github.com/thedevsaddam/gojsonq"
 )
 
 func main() {
-	buf := bytes.NewBufferString("123456789")
-	a := make([]byte, 2)
-	// a := bytes.NewBuffer(make([]byte, 1))
-	buf.Read(a)
+	a := "{'da':'test'}"
 	fmt.Println(a)
-	// buf.Reset()
-	buf.Read(a)
-	fmt.Println(a)
-	fmt.Println(buf.String())
-	// strings.Contains()
-	buf.Read(a)
-	fmt.Println(a)
+	aa := strings.ReplaceAll(a, "'", "\"")
+	fmt.Println(aa)
+	// bs, _ := json.Marshal(aa)
+	v := gojsonq.New().FromString(aa)
+	fmt.Println(v.Find("da"))
 
 }

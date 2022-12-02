@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -31,6 +33,8 @@ type Stream struct {
 	ch              chan string
 	readUntilExpect string
 	session         *ssh.Session
+	logger          *logrus.Logger
+	mu              *sync.Mutex
 }
 
 func NewClient(li *LoginInfo) (*Client, error) {
@@ -42,8 +46,6 @@ func NewClient(li *LoginInfo) (*Client, error) {
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
-
-	// Connect to the client
 	client, err := ssh.Dial("tcp", li.Ip+":"+strconv.Itoa(li.Port), config)
 	if err != nil {
 		return nil, err
@@ -64,6 +66,18 @@ func (c *Client) Run(cmd string) string {
 }
 
 func (c *Client) NewStream() (*Stream, error) {
+	var flag string
+	if c.Client.User() == "root" {
+		flag = "]#"
+	} else {
+		flag = "]$"
+	}
+	var log = logrus.New()
+	file, err := os.OpenFile("logrus.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, err
+	}
+	log.Out = file
 	session, err := c.NewSession()
 	if err != nil {
 		return nil, err
@@ -91,8 +105,28 @@ func (c *Client) NewStream() (*Stream, error) {
 		fmt.Printf("shell session error%v", err)
 		return nil, err
 	}
-	go session.Wait()
-	return &Stream{in: stream, out: outbuf, ch: make(chan string, 1), session: session, readUntilExpect: "]$"}, nil
+
+	timeout := time.After(time.Second * 10)
+	for {
+		select {
+		case <-timeout:
+			log.Panic("strem create timeout")
+		default:
+			time.Sleep(time.Microsecond * 200)
+			if strings.Contains(outbuf.String(), flag) {
+				tmp := make([]byte, len(outbuf.String()))
+				outbuf.Read(tmp)
+				return &Stream{in: stream,
+					out:             outbuf,
+					ch:              make(chan string, 1),
+					session:         session,
+					readUntilExpect: flag,
+					logger:          log,
+					mu:              new(sync.Mutex)}, nil
+			}
+		}
+	}
+
 }
 
 func (s *Stream) UpdateReadUntilExpect(expect string) {
@@ -101,11 +135,11 @@ func (s *Stream) UpdateReadUntilExpect(expect string) {
 
 func (s *Stream) readUntil() error {
 	ch := make(chan struct{}, 1)
-	timeout := time.After(time.Second * 5)
+	timeout := time.After(time.Second * 10)
 	for {
 		select {
 		case <-timeout:
-			return errors.New("Timeout Waiting for Return")
+			return errors.New("timeout Waiting for Return")
 		case <-ch:
 			return nil
 		default:
@@ -122,9 +156,11 @@ func (s *Stream) readUntil() error {
 }
 
 func (s *Stream) Run(cmd string) string {
+	s.mu.Lock()
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
+		s.logger.Infof("Input:%s", cmd)
 		s.in.Write([]byte(fmt.Sprintf("%v\n", cmd)))
 		wg.Done()
 	}()
@@ -136,10 +172,18 @@ func (s *Stream) Run(cmd string) string {
 		wg.Done()
 	}()
 	wg.Wait()
-	return <-s.ch
+	out := <-s.ch
+	if strings.Contains(out, "]#") || strings.Contains(out, "]$") {
+		outSlice := strings.Split(out, "\n")
+		outStrip := strings.Join(outSlice[:len(outSlice)-1], "\n")
+		out = strings.ReplaceAll(outStrip, "\r", "")
+	}
+	s.logger.Infof("Output:%s", out)
+	s.mu.Unlock()
+	return out
 }
 
-func (s Stream) Close() {
+func (s *Stream) Close() {
 	s.in.Close()
 	s.session.Close()
 }

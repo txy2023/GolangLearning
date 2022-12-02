@@ -4,39 +4,33 @@ import (
 	"fmt"
 	"log"
 	"shannont/ssh/cmd"
+	"sync"
 )
 
 func main() {
 	user1 := &cmd.LoginInfo{
 		User:     "tian",
-		Ip:       "192.168.1.3",
+		Ip:       "192.168.101.108",
 		Port:     22,
 		Password: "tian",
 	}
-	client, err := cmd.NewClient(user1)
+	client, _ := cmd.NewClient(user1)
+
+	s, err := client.NewStream()
 	if err != nil {
 		log.Panic(err)
 	}
-	out := client.Run("whoami")
-	fmt.Println(out)
-	fmt.Println(client.Run("pwd"))
-	stream, err := client.NewStream()
-	if err != nil {
-		log.Panic(err)
-	}
-
-	fmt.Println(stream.Run("pwd"))
-	stream.UpdateReadUntilExpect("Password:")
-	fmt.Println(stream.Run("su"))
-	stream.UpdateReadUntilExpect("]#")
-	fmt.Println(stream.Run("tian"))
-	fmt.Println(stream.Run("cd /root"))
-	fmt.Println(stream.Run("./test.sh"))
-	// stream.Run("pwd")
-	// stream.Run("ls")
-
-	// fmt.Println(stream.Run("whoami"))
-	// fmt.Println(stream.Run(""))
-	// fmt.Println(stream.Run(""))
-	// stream.Close()
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		s.Run("sleep 5")
+		fmt.Println("test1")
+		wg.Done()
+	}()
+	go func() {
+		s.Run("echo hello")
+		fmt.Println("test2")
+		wg.Done()
+	}()
+	wg.Wait()
 }
