@@ -20,10 +20,14 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
+	defer func() {
+		s.Close()
+		client.Close()
+	}()
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		s.Run("sleep 5")
+		s.Run("sleep 2")
 		fmt.Println("test1")
 		wg.Done()
 	}()

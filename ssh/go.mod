@@ -4,7 +4,6 @@ go 1.18
 
 require (
 	github.com/sirupsen/logrus v1.9.0
-	github.com/thedevsaddam/gojsonq v2.3.0+incompatible
 	golang.org/x/crypto v0.0.0-20221012134737-56aed061732a
 )
 

@@ -27,14 +27,15 @@ type Client struct {
 	*ssh.Client
 }
 
+// 在一次session中可连续执行Run方法
 type Stream struct {
-	in              io.WriteCloser
-	out             *bytes.Buffer
-	ch              chan string
-	readUntilExpect string
+	in              io.WriteCloser //session.StdinPipe()
+	out             *bytes.Buffer  //记录session.Stdout和session.Stderr
+	ch              chan string    //保存Run操作后的返回值
+	readUntilExpect string         //Run操作执行后读取返回值直到readUntilExpect
 	session         *ssh.Session
-	logger          *logrus.Logger
-	mu              *sync.Mutex
+	logger          *logrus.Logger //记录日志
+	mu              *sync.Mutex    //读写锁，确保一次完整的Run操作
 }
 
 func NewClient(li *LoginInfo) (*Client, error) {
@@ -53,6 +54,7 @@ func NewClient(li *LoginInfo) (*Client, error) {
 	return &Client{client}, nil
 }
 
+// 单次
 func (c *Client) Run(cmd string) string {
 	session, err := c.NewSession()
 	if err != nil {
@@ -65,19 +67,23 @@ func (c *Client) Run(cmd string) string {
 	return string(res)
 }
 
+// 新建一个stream
 func (c *Client) NewStream() (*Stream, error) {
+	// 确定readUntilExpect
 	var flag string
 	if c.Client.User() == "root" {
 		flag = "]#"
 	} else {
 		flag = "]$"
 	}
+	// 定义日志
 	var log = logrus.New()
 	file, err := os.OpenFile("logrus.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, err
 	}
 	log.Out = file
+	// 创建session
 	session, err := c.NewSession()
 	if err != nil {
 		return nil, err
@@ -93,24 +99,22 @@ func (c *Client) NewStream() (*Stream, error) {
 	}
 	stream, err := session.StdinPipe()
 	if err != nil {
-		log.Printf("get stdin pipe error%v\n", err)
+		log.Panicf("get stdin pipe error%v\n", err)
 		return nil, err
 	}
-	var outbuf *bytes.Buffer = bytes.NewBuffer(make([]byte, 0))
+	var outbuf = bytes.NewBuffer(make([]byte, 0))
 	session.Stdout = outbuf
 	session.Stderr = outbuf
-
 	err = session.Shell()
 	if err != nil {
-		fmt.Printf("shell session error%v", err)
-		return nil, err
+		log.Panicf("shell session error%v", err)
 	}
-
+	// 过滤返回的登录信息(Last login: Fri Dec  2 08:09:12 2022 from 192.168.101.105),返回stream
 	timeout := time.After(time.Second * 10)
 	for {
 		select {
 		case <-timeout:
-			log.Panic("strem create timeout")
+			log.Panic("stream create timeout")
 		default:
 			time.Sleep(time.Microsecond * 200)
 			if strings.Contains(outbuf.String(), flag) {
@@ -126,13 +130,14 @@ func (c *Client) NewStream() (*Stream, error) {
 			}
 		}
 	}
-
 }
 
+// 更新readUntilExpect
 func (s *Stream) UpdateReadUntilExpect(expect string) {
 	s.readUntilExpect = expect
 }
 
+// 读取返回值，直到readUntilExpect
 func (s *Stream) readUntil() error {
 	ch := make(chan struct{}, 1)
 	timeout := time.After(time.Second * 10)
@@ -155,6 +160,7 @@ func (s *Stream) readUntil() error {
 	}
 }
 
+// 每次输入cmd,返回对应的值
 func (s *Stream) Run(cmd string) string {
 	s.mu.Lock()
 	var wg sync.WaitGroup
@@ -173,6 +179,7 @@ func (s *Stream) Run(cmd string) string {
 	}()
 	wg.Wait()
 	out := <-s.ch
+	// 返回值过滤掉主机名等信息
 	if strings.Contains(out, "]#") || strings.Contains(out, "]$") {
 		outSlice := strings.Split(out, "\n")
 		outStrip := strings.Join(outSlice[:len(outSlice)-1], "\n")
@@ -183,6 +190,7 @@ func (s *Stream) Run(cmd string) string {
 	return out
 }
 
+// 关闭stream
 func (s *Stream) Close() {
 	s.in.Close()
 	s.session.Close()
