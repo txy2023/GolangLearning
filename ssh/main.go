@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
-	"shannont/ssh/cmd"
 	"sync"
+	"wanshantian/GolangLearning/ssh/cmd"
 )
 
 func main() {
