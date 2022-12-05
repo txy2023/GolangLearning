@@ -1,4 +1,4 @@
-module wanshantian/GolangLearning/ssh
+module github.com/wanshantian/GolangLearning/ssh
 
 go 1.18
 

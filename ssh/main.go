@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"log"
 	"sync"
-	"wanshantian/GolangLearning/ssh/cmd"
+
+	"github.com/wanshantian/GolangLearning/ssh/cmd"
 )
 
 func main() {
