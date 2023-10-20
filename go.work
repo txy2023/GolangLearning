@@ -3,5 +3,6 @@ go 1.18
 use (
 	./Common/caller
 	./Common/callers
+	./gin/demo
 	./reflect
 )
